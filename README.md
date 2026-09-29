@@ -6,22 +6,22 @@ It scans public job boards at 31 companies, uses code for everything code is goo
 
 ## The problem
 
-Keyword filters fail in both directions. On the first scan (2026-09-28), 7,332 open roles came back and 658 had "product," "PM," or "GM" in the title. Among them:
+A scan on 2026-09-29 returned 7,301 open roles, and 658 had "product," "PM," or "GM" in the title. Those 658 include:
 
-- **"Account Executive, Product Sales"** and **"Strategic Finance Manager, Product"** pass a title filter. Neither is a PM role.
-- **"Business Systems Analyst, New Product Introduction"** passes too.
-- A PM on a billing page at an AI company is not an AI PM. A PM whose title says "Platform" might be building the model API.
+- **17 "Account Executive, Product Sales" roles at Stripe**, plus "Strategic Finance Manager, Product" and "Business Systems Analyst, New Product Introduction." None of these are PM roles.
+- **PM roles whose titles never mention AI**, like "Staff Product Manager, Connect" or "Senior Product Manager, Email Security," where the description makes AI central to the job.
 
-Whether a role is AI product work lives in the description, not the title.
+A title filter can mostly handle the first problem. It can't handle the second, because whether a role is AI product work lives in the description, not the title.
 
 ## How it works
 
 ```
-31 job boards ──► fetch.py ──► 7,332 roles
-                   │  code: title contains product / PM / GM?     (stage 1: cheap, loose)
-                   │  code: pay range, remote flag, dedupe         (facts, not judgment)
+31 job boards ──► fetch.py ──► 7,301 roles
+                   │  code: title contains product / PM / GM?     (stage 1: cheap, loose)   → 658
+                   │  code: merge one job posted in several cities                           → 571
+                   │  code: pay range, remote flag                 (facts, not judgment)
                    ▼
-                 658 postings ──► Jev: 3 questions per posting     (stage 2: meaning)
+                 571 postings ──► Jev: 3 questions per posting     (stage 2: meaning)
                                    │  role       pm / adjacent / not_pm / unclear
                                    │  ai_focus   ai_product / ai_feature / not_ai / unclear
                                    │  ml_background   yes/no probability
@@ -30,7 +30,7 @@ Whether a role is AI product work lives in the description, not the title.
                                  anything under its floor goes to review
 ```
 
-**Code computes facts, the model judges meaning.** Pay ranges, dates, and deduplication are arithmetic and string matching, which models are bad at and code gets right every time. Jev only gets questions that need reading comprehension.
+**Code computes facts, the model judges meaning.** Pay ranges, dates, and deduplication are arithmetic and string matching, which models are bad at and code gets right every time. Jev only gets questions that need reading comprehension. Deduplication alone removed 13% of postings, the same job listed once per city, before any model saw them.
 
 **Every question has an escape option.** `unclear` is always available, and the instructions say when to use it. A model forced to pick between two wrong answers still picks one, confidently.
 
@@ -50,14 +50,27 @@ The question isn't "is Jev accurate." It's "is Jev better than the rule it repla
 
 ### Results
 
-*Pending the first labeled run. Every number here will come from [`eval/results.md`](eval/results.md), and none will be estimated.*
+Measured on 2026-09-29 with `jev-1.13.0`. Full detail in [`eval/results.md`](eval/results.md).
 
 | | Jev | Title regex |
 |---|---|---|
-| `role` agrees with hand labels | | |
-| `ai_focus` agrees with hand labels | | |
-| Cost, full run | | $0 |
-| Time, full run | | |
+| Is it a PM role? (40 labeled postings) | **40/40** | 39/40 |
+| Is it AI product work? (15 labeled PM roles) | **15/15** | 5/15 |
+| Full run, 571 postings | 20.6 s · $0.046 | instant · $0 |
+| Median latency per posting | 278 ms | n/a |
+
+**What this says:**
+
+- **For "is it a PM role," the regex nearly ties.** Titles are good at that question. The regex's one miss was "Director of Product, Growth/AI." If that were the only question, the model wouldn't be worth adding.
+- **For "is it AI work," the regex misses two in three.** It called 10 of the 15 AI roles non-AI, because their titles never mention AI. Jev read the descriptions and got all 15. This is the question the model is worth paying for, at under five cents a run.
+- **The review bucket is the cost of the floors.** On the full run, 82 of 571 postings (14%) landed in review: 52 where the `role` answer came in under its 0.7 floor, and 30 PM roles where `ai_focus` came in under 0.6 or was `unclear`. Nothing in the labeled sample shows those floors are too strict or too loose yet. That needs labels drawn from the review bucket itself.
+
+**Limits, stated plainly:**
+
+- **40 labels is a small sample.** 15/15 is not "100% accurate." It means no errors in 15 tries, which is consistent with a real error rate of up to about 20%. The next step is more labels, weighted toward the review bucket.
+- **The finer AI question is less settled.** On the three-way split (`ai_product` / `ai_feature` / `not_ai`), Jev and the labels agree on 9 of 18. The labels put every AI-involved role in `ai_product`; Jev put 6 of them in `ai_feature`. That's a definition problem, not a model problem, and it's the next change to the spec.
+- **Three labels were corrected after review.** They were key slips (a designer, a program manager, and an account executive marked "PM" by mistake), caught because they contradicted the notes on similar postings. Each correction is marked in [`eval/labels.csv`](eval/labels.csv).
+- **The model version is pinned in the results.** Scores are for `jev-1.13.0`. A newer version needs a rerun of the same 40 before the numbers carry over.
 
 ## Run it
 
@@ -74,7 +87,7 @@ Jev is called through TypeSafe's API directly if `TYPESAFE_API_KEY` is set, othe
 
 To reproduce the eval: `python3 eval/label.py`, then `python3 radar/run.py --ids eval/labels.csv`, then `python3 eval/score.py`.
 
-To scan different companies, edit [`radar/boards.json`](radar/boards.json). Any company on Greenhouse, Ashby, or Lever works.
+To scan different companies, edit [`radar/boards.json`](radar/boards.json), or put your own list in `radar/boards.local.json` (gitignored, used automatically when present). Any company on Greenhouse, Ashby, Lever, or Workable works.
 
 ## Credits
 

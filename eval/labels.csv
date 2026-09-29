@@ -1,0 +1,41 @@
+id,company,title,role,ai_focus,ml_background,note
+d06a8f67dd,Stripe,"Account Executive, Product Sales - Crypto",not_pm,,,"corrected after review: key slip, was pm"
+a28d96b47f,Anthropic,"Product Manager, Safeguards (Generalist) ",pm,ai_product,false,
+76231848d2,Datadog,Product Management Intern,pm,ai_product,false,intern
+161ca2b11c,Pinterest,"Product Manager II, Search Experience",pm,ai_product,false,
+690012940d,Figma,Product Design Intern (2027),not_pm,,,product design
+902e3739d1,Stripe,Product Counsel (Money Movement Legal - APAC) ,not_pm,,,located in singapore
+bf76382342,Stripe,"Account Executive, Product - Issuing & Treasury (Hunter)",not_pm,,,account executive
+fe8991e1b0,Lovable,"Data Scientist, Product",not_pm,,,data scientist
+1eca30aa7e,Scale AI,Staff Product Designer,not_pm,,,product design
+05eccbb41e,OpenAI,"Product Designer, Engineering Acceleration",not_pm,,,product design
+15405f4c66,Anthropic,"Product Policy Manager, Product Risk",not_pm,,,risk/policy management
+5e445c01c9,Anthropic,"Product Marketing Manager, Special Projects",not_pm,,,product marketing
+cb4fdfb68b,Scale AI,Staff Technical Product Manager,pm,ai_product,false,
+54aef56d67,Figma,"Product Designer, CMS",not_pm,,,product designer
+449d14aac3,Airbnb,"Product Manager, Pricing",pm,unclear,false,
+d5752f2aee,Sierra,Product Marketing Manager,not_pm,,,product marketing
+52a60e2a5a,Anthropic,"Product Marketing Lead, GTM Strategy - Claude for Knowledge Work",not_pm,,,product marketing
+a05298b736,Stripe,"Staff Product Manager, Connect",pm,ai_product,false,
+a8243dd9d7,OpenAI,"Product Engineer, Full Stack - Agents",not_pm,,,product engineer
+c99afb74e9,Figma,"Product Designer, Design Systems",not_pm,,,product designer
+dbed967086,Ramp,Product Designer,not_pm,,,product designer
+7f24798f48,Datadog,"Product Strategy and Corporate Development Lead, AI",not_pm,,,product strategy
+c9e84e253a,Anthropic,"Product Designer, Design Systems",not_pm,,,product desinger
+69aa70be05,Stripe,"Product Manager - Issuance, Bridge",pm,unclear,false,
+a4a1ffe34f,Coinbase,"Group Product Manager, Compliance Agent Experience",pm,ai_product,false,
+39decc3a7e,Stripe,"Product Manager, Employee Experiences",pm,ai_product,false,
+f8f791ea06,Figma,"Manager, Product Management - Roundtripping",pm,ai_product,false,
+08f49ef48b,Robinhood,"Staff Product Manager, Banking",pm,unclear,false,
+65889e54f0,Scale AI,"Staff Product Manager, Physical AI Data & Robotics",pm,ai_product,false,
+6d9fa77040,Vercel,"Product Manager, Dashboard",pm,ai_product,false,
+1d1cee7c85,Stripe,Account Executive Product - Fraud & Risk ,not_pm,,,account executive
+f0cb0f9d02,Brex,"Director of Product, Growth/AI",pm,ai_product,false,
+74b0328bdb,Coinbase,"Group Product Manager, Money Movement",pm,ai_product,false,
+45fcf432d9,Cloudflare,"Senior Product Manager, Email Security",pm,ai_product,false,
+5578c427d5,Databricks,"Program Manager, Product Legal",not_pm,,,"corrected after review: key slip, was pm"
+4abf17eafb,Ramp,Lead Product Marketing Manager - Verticals ,not_pm,,,product marketing manager
+b931d38df2,Lovable,Product Manager (Agents) ,pm,ai_product,false,
+93fcbaeaa4,Stripe,Account Executive Product - Tax,not_pm,,,account executive
+efff2418c9,Vercel,"Product Designer, Marketplace",not_pm,,,"corrected after review: key slip, was pm"
+4e120296f1,Scale AI,"Product Manager of AI Applications, Global Public Sector",pm,ai_product,false,

@@ -2,8 +2,11 @@
 """Score Jev and the title regex against the hand labels.
 
 Run after eval/label.py and after `radar/run.py --ids eval/labels.csv`.
-Reports agreement per question, where each one was wrong, and what confidence
-the wrong Jev answers came with. That last part is what sets the floors in spec.json.
+
+Headline: the two decisions the buckets actually make, "is this a PM role?" and
+"is this AI product work?". Below that, strict agreement on every label, plus every
+posting Jev got wrong with the confidence it gave. Wrong at high confidence means the
+question needs rewriting; wrong at low confidence means the floor is doing its job.
 
 Usage: python3 eval/score.py
 """
@@ -13,48 +16,72 @@ from pathlib import Path
 ROOT = Path(__file__).parent.parent
 
 
+def is_pm(x):
+    return x == "pm"                       # adjacent and not_pm are both "not a PM role"
+
+
+def is_ai(x):
+    return {"ai_product": True, "ai_feature": True, "not_ai": False}.get(x)   # unclear -> None
+
+
+def pct(k, n):
+    return f"{k}/{n} ({k / n:.0%})" if n else "n/a"
+
+
 def main():
     labels = {r["id"]: r for r in csv.DictReader((ROOT / "eval" / "labels.csv").open())}
     results = {r["id"]: r for r in map(json.loads, (ROOT / "output" / "results.jsonl").read_text().splitlines())}
     ids = [i for i in labels if i in results]
-    missing = len(labels) - len(ids)
+    L, R = labels, results
 
     lines = [f"# Eval: {len(ids)} hand-labeled postings", ""]
-    if missing:
-        lines += [f"{missing} labeled postings have no Jev result yet. Run `radar/run.py --ids eval/labels.csv`.", ""]
+    if len(ids) < len(labels):
+        lines += [f"{len(labels) - len(ids)} labeled postings have no Jev result yet. "
+                  "Run `radar/run.py --ids eval/labels.csv`.", ""]
 
-    lines += ["| Question | Jev agrees | Title regex agrees | Scored on |", "|---|---|---|---|"]
-    wrong = {}
-    for q, jk, rk, subset in [("role", "role", "regex_role", ids),
-                              ("ai_focus", "ai_focus", "regex_ai", [i for i in ids if labels[i]["role"] == "pm"])]:
-        j = sum(results[i][jk] == labels[i][q] for i in subset)
-        if q == "ai_focus":
-            # The regex has no ai_feature option; count it right when it says ai_product for either AI label.
-            r = sum((results[i][rk] == "ai_product") == (labels[i][q] in ("ai_product", "ai_feature")) for i in subset)
-        else:
-            r = sum(results[i][rk] == labels[i][q] for i in subset)
-        wrong[q] = [i for i in subset if results[i][jk] != labels[i][q]]
-        n = len(subset) or 1
-        lines.append(f"| `{q}` | {j}/{len(subset)} ({j / n:.0%}) | {r}/{len(subset)} ({r / n:.0%}) | "
-                     f"{'all' if subset is ids else 'labeled PM roles'} |")
-    lines += ["", "The regex has no `ai_feature` option, so for `ai_focus` it is scored on AI vs. not AI only, "
-              "a looser test than Jev gets.", ""]
+    pm_ids = [i for i in ids if is_pm(L[i]["role"])]
+    ai_ids = [i for i in pm_ids if is_ai(L[i]["ai_focus"]) is not None]
+    role_j = sum(is_pm(R[i]["role"]) == is_pm(L[i]["role"]) for i in ids)
+    role_r = sum(is_pm(R[i]["regex_role"]) == is_pm(L[i]["role"]) for i in ids)
+    ai_j = sum(is_ai(R[i]["ai_focus"]) == is_ai(L[i]["ai_focus"]) for i in ai_ids)
+    ai_r = sum(is_ai(R[i]["regex_ai"]) == is_ai(L[i]["ai_focus"]) for i in ai_ids)
+    lines += ["## The two decisions", "",
+              "| Decision | Jev | Title regex | Scored on |", "|---|---|---|---|",
+              f"| Is it a PM role? | {pct(role_j, len(ids))} | {pct(role_r, len(ids))} | all labeled postings |",
+              f"| Is it AI product work? | {pct(ai_j, len(ai_ids))} | {pct(ai_r, len(ai_ids))} | "
+              f"labeled PM roles with a definite AI label ({len(pm_ids) - len(ai_ids)} labeled unclear left out) |", ""]
 
-    for q, conf in (("role", "role_conf"), ("ai_focus", "ai_conf")):
-        lines += [f"## Jev wrong on `{q}` ({len(wrong[q])})", ""]
-        if not wrong[q]:
-            lines += ["None.", ""]
-            continue
-        lines += ["| Company | Title | Label | Jev | conf | Note |", "|---|---|---|---|---|---|"]
-        for i in sorted(wrong[q], key=lambda i: -results[i][conf]):
-            lines.append(f"| {labels[i]['company']} | {labels[i]['title']} | {labels[i][q]} | "
-                         f"{results[i][q]} | {results[i][conf]} | {labels[i]['note']} |")
+    for title, pred, subset, test in (
+        ("Regex wrong: is it a PM role?", "regex_role", ids, lambda i: is_pm(R[i]["regex_role"]) != is_pm(L[i]["role"])),
+        ("Regex wrong: is it AI product work?", "regex_ai", ai_ids, lambda i: is_ai(R[i]["regex_ai"]) != is_ai(L[i]["ai_focus"])),
+        ("Jev wrong: is it a PM role?", "role", ids, lambda i: is_pm(R[i]["role"]) != is_pm(L[i]["role"])),
+        ("Jev wrong: is it AI product work?", "ai_focus", ai_ids, lambda i: is_ai(R[i]["ai_focus"]) != is_ai(L[i]["ai_focus"])),
+    ):
+        miss = [i for i in subset if test(i)]
+        lines += [f"### {title} ({len(miss)})", ""]
+        lines += ([f"- {L[i]['company']} · {L[i]['title'].strip()} (label: {L[i]['role'] if 'role' in pred else L[i]['ai_focus']}, "
+                   f"said: {R[i][pred]})" for i in miss] or ["None."]) + [""]
+
+    # Strict agreement, every label as written.
+    strict_role = sum(R[i]["role"] == L[i]["role"] for i in ids)
+    strict_ai = sum(R[i]["ai_focus"] == L[i]["ai_focus"] for i in pm_ids)
+    lines += ["## Strict agreement, every label as written", "",
+              f"- `role` (pm / adjacent / not_pm / unclear): Jev {pct(strict_role, len(ids))}. "
+              "Most misses are Jev saying `adjacent` where the label says `not_pm`; both mean not a PM role.",
+              f"- `ai_focus` (ai_product / ai_feature / not_ai / unclear): Jev {pct(strict_ai, len(pm_ids))} on labeled PM roles.", ""]
+    split = [i for i in pm_ids if R[i]["ai_focus"] != L[i]["ai_focus"]]
+    if split:
+        lines += ["| Company | Title | Label | Jev | conf |", "|---|---|---|---|---|"]
+        lines += [f"| {L[i]['company']} | {L[i]['title'].strip()} | {L[i]['ai_focus']} | {R[i]['ai_focus']} | {R[i]['ai_conf']} |"
+                  for i in sorted(split, key=lambda i: -R[i]["ai_conf"])]
         lines.append("")
 
-    ml = [i for i in ids if labels[i]["ml_background"] in ("true", "false")]
+    ml = [i for i in pm_ids if L[i]["ml_background"] in ("true", "false")]
     if ml:
-        hit = sum((results[i]["ml_background"] >= 0.5) == (labels[i]["ml_background"] == "true") for i in ml)
-        lines += [f"`ml_background` at a 0.5 cut: {hit}/{len(ml)} agree with the labels.", ""]
+        hit = sum((R[i]["ml_background"] >= 0.5) == (L[i]["ml_background"] == "true") for i in ml)
+        pos = sum(L[i]["ml_background"] == "true" for i in ml)
+        lines += [f"`ml_background` at a 0.5 cut: {pct(hit, len(ml))} agree. "
+                  f"{pos} of {len(ml)} labeled PM roles need hands-on ML, so this is mostly a test of false alarms.", ""]
 
     out = ROOT / "eval" / "results.md"
     out.write_text("\n".join(lines) + "\n")
