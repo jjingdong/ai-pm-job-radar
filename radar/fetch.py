@@ -109,19 +109,26 @@ def main():
             total += len(jobs)
             kept += [facts(j) for j in jobs if j["url"] and MAYBE_PRODUCT.search(j["title"])]
 
-    seen, out = set(), []
-    for p in kept:                       # the same req is sometimes posted twice under one URL
-        if p["url"] not in seen:
-            seen.add(p["url"])
-            p["id"] = hashlib.sha1(p["url"].encode()).hexdigest()[:10]   # stable across fetches, so labels survive
-            out.append(p)
+    # One job posted in several cities shows up as several postings with different URLs.
+    # Same company, title, and description is one job: keep the first URL, merge the locations.
+    seen, out = {}, []
+    for p in kept:
+        k = (p["company"], p["title"].strip().lower(), p["body"][:1000])
+        if k in seen:
+            first = seen[k]
+            if p["location"] and p["location"] not in first["location"]:
+                first["location"] = f"{first['location']} | {p['location']}".strip(" |")
+            continue
+        seen[k] = p
+        p["id"] = hashlib.sha1(p["url"].encode()).hexdigest()[:10]   # stable across fetches, so labels survive
+        out.append(p)
 
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     with open(a.out, "w") as f:
         for p in out:
             f.write(json.dumps(p) + "\n")
     print(f"{len(work) - len(failed)}/{len(work)} boards · {total:,} open roles · "
-          f"{len(out):,} kept by the title filter → {a.out}")
+          f"{len(kept):,} kept by the title filter · {len(out):,} after merging multi-city duplicates → {a.out}")
     for e in failed:
         print(f"  failed: {e}", file=sys.stderr)
 
