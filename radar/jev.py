@@ -1,26 +1,44 @@
-"""Minimal Jev client over Vercel AI Gateway's TypeSafe-compatible endpoint. Standard library only.
+"""Minimal Jev client. Standard library only.
 
-The key is read from AI_GATEWAY_API_KEY, or from ~/.config/ai-gateway/.env. It is never
-printed, logged, or written anywhere else.
+Two routes, same request and response shape:
+  - TypeSafe directly, if TYPESAFE_API_KEY is set (env or ~/.config/typesafe/.env)
+  - Vercel AI Gateway otherwise, with AI_GATEWAY_API_KEY (env or ~/.config/ai-gateway/.env)
+Keys are never printed, logged, or written anywhere else.
 """
 import hashlib, json, os, random, time, urllib.error, urllib.request
 from pathlib import Path
 
-ENDPOINT = "https://ai-gateway.vercel.sh/typesafe/v1/systemone"
 PRICE_PER_M_INPUT = 0.042     # USD per million input tokens; output tokens are free
-KEY_FILE = Path("~/.config/ai-gateway/.env").expanduser()
+ROUTES = [  # first route with a key wins
+    ("TYPESAFE_API_KEY", Path("~/.config/typesafe/.env"), "https://api.typesafe.ai/v1/systemone", "jev-latest"),
+    ("AI_GATEWAY_API_KEY", Path("~/.config/ai-gateway/.env"), "https://ai-gateway.vercel.sh/typesafe/v1/systemone", "typesafe-ai/jev"),
+]
+ENDPOINT = None
+
+
+def _read(name, path):
+    if os.environ.get(name):
+        return os.environ[name].strip()
+    path = path.expanduser()
+    if path.is_file():
+        for line in path.read_text().splitlines():
+            if line.startswith(f"{name}="):
+                value = line.split("=", 1)[1].strip().strip("'\"")
+                if value and "paste" not in value:
+                    return value
+    return None
 
 
 def api_key():
-    if os.environ.get("AI_GATEWAY_API_KEY"):
-        return os.environ["AI_GATEWAY_API_KEY"].strip()
-    if KEY_FILE.is_file():
-        for line in KEY_FILE.read_text().splitlines():
-            if line.startswith("AI_GATEWAY_API_KEY="):
-                value = line.split("=", 1)[1].strip().strip("'\"")
-                if value:
-                    return value
-    raise SystemExit(f"No AI_GATEWAY_API_KEY. Set it in the environment or in {KEY_FILE}.")
+    """Pick the route, set ENDPOINT, and return (key, model id for that route)."""
+    global ENDPOINT
+    for name, path, endpoint, model in ROUTES:
+        key = _read(name, path)
+        if key:
+            ENDPOINT = endpoint
+            return key, model
+    raise SystemExit("No Jev key. Set TYPESAFE_API_KEY or AI_GATEWAY_API_KEY in the environment, "
+                     "or in ~/.config/typesafe/.env or ~/.config/ai-gateway/.env.")
 
 
 def state_for(posting, context):

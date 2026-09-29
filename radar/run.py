@@ -75,7 +75,8 @@ def main():
     elif a.sample and a.sample < len(postings):
         postings = random.Random(7).sample(postings, a.sample)
 
-    model, qs = spec["model"], questions_for(spec)
+    qs = questions_for(spec)
+    key, model = jev.api_key()      # the route decides the model id; the spec's is documentation
     jobs = [(p, jev.state_for(p, spec["context"])) for p in postings]
     cache = load_cache()
     todo = [(p, s) for p, s in jobs if jev.cache_key(model, qs, s) not in cache]
@@ -88,8 +89,7 @@ def main():
         print(json.dumps(todo[0][1] if todo else jobs[0][1], indent=1)[:1500])
         return
 
-    key = jev.api_key() if todo else None
-    t0, errors = time.monotonic(), []
+    t0, errors, done = time.monotonic(), [], 0
     if todo:
         with ThreadPoolExecutor(a.concurrency) as ex, open(CACHE, "a") as cf:
             futs = {ex.submit(jev.ask, key, model, qs, s): s for _, s in todo}
@@ -108,6 +108,7 @@ def main():
                 k = jev.cache_key(model, qs, s)
                 cache[k] = r
                 cf.write(json.dumps({"key": k, "response": r}) + "\n")
+                done += 1
                 if i % 50 == 0:
                     print(f"  {i}/{len(todo)}", file=sys.stderr)
     seconds = time.monotonic() - t0
@@ -151,7 +152,7 @@ def main():
         counts[r["bucket"]] = counts.get(r["bucket"], 0) + 1
     flips = [r for r in results if r["role"] != r["regex_role"]]
     lat = sorted(r["latency_ms"] for r in results if r.get("latency_ms"))
-    head = (f"{len(results)} postings · {len(todo) - len(errors)} new calls in {seconds:.1f}s · "
+    head = (f"{len(results)} postings · {done} new calls in {seconds:.1f}s · "
             f"${spent:.4f} · {tokens:,} input tokens · model {', '.join(sorted(served_by))}")
     if lat:
         head += f" · median latency {lat[len(lat) // 2]} ms"

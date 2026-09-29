@@ -70,7 +70,7 @@ python3 radar/run.py --sample 40           # review a sample before running ever
 python3 radar/run.py                       # everything; results cached, reruns are free
 ```
 
-Jev is called through [Vercel AI Gateway](https://vercel.com/docs/ai-gateway/sdks-and-apis/typesafe). Set `AI_GATEWAY_API_KEY` in your environment or in `~/.config/ai-gateway/.env`. Output lands in `output/summary.md` and `output/results.csv`.
+Jev is called through TypeSafe's API directly if `TYPESAFE_API_KEY` is set, otherwise through [Vercel AI Gateway](https://vercel.com/docs/ai-gateway/sdks-and-apis/typesafe) with `AI_GATEWAY_API_KEY`. Either key can live in your environment or in `~/.config/typesafe/.env` / `~/.config/ai-gateway/.env`, never in the repo. Output lands in `output/summary.md` and `output/results.csv`.
 
 To reproduce the eval: `python3 eval/label.py`, then `python3 radar/run.py --ids eval/labels.csv`, then `python3 eval/score.py`.
 
