@@ -1,76 +1,91 @@
 # AI PM Job Radar
 
-Which open product roles at AI and tech companies are real product management jobs, and which of those are AI product jobs? A title filter can't tell you. This project asks a decision model instead, then measures whether that was worth it.
+I built this to test [Jev](https://docs.typesafe.ai), a decision model from TypeSafe. Jev doesn't write text. You give it a posting and a multiple-choice question, and it returns an answer with a confidence score in about 0.3 seconds, for a fraction of a cent. I wanted to find out whether it's accurate and cheap enough to replace the simple rules people use today.
 
-It scans public job boards at 31 companies, uses code for everything code is good at, and sends only the judgment calls to [Jev](https://docs.typesafe.ai), a model that answers typed multiple-choice questions with a confidence score instead of writing text.
+I tested it on PM job listings, a problem I know well. Most job alerts filter on keywords in the title, so the question became: can Jev sort product management listings better than a keyword filter? Specifically, can it tell which roles are real PM jobs, and which of those are AI product jobs?
+
+My guess going in was that titles work well enough for the first question but not for the second, because most AI PM roles don't have "AI" in the title. This project tests that guess on real listings from 31 AI and tech companies.
 
 ## The problem
 
-A scan on 2026-09-29 returned 7,301 open roles, and 658 had "product," "PM," or "GM" in the title. Those 658 include:
+A scan on 2026-09-29 returned 7,301 open roles. 658 had "product," "PM," or "GM" in the title, and many of those aren't PM jobs. Seventeen are "Account Executive, Product Sales" roles at Stripe, and others include "Strategic Finance Manager, Product" and "Business Systems Analyst, New Product Introduction."
 
-- **17 "Account Executive, Product Sales" roles at Stripe**, plus "Strategic Finance Manager, Product" and "Business Systems Analyst, New Product Introduction." None of these are PM roles.
-- **PM roles whose titles never mention AI**, like "Staff Product Manager, Connect" or "Senior Product Manager, Email Security," where the description makes AI central to the job.
-
-A title filter can mostly handle the first problem. It can't handle the second, because whether a role is AI product work lives in the description, not the title.
+Other roles have the opposite problem. "Staff Product Manager, Connect" and "Senior Product Manager, Email Security" read like ordinary PM roles, but their descriptions involve AI product work. A title filter only sees the title, so it misses them.
 
 ## How it works
 
 ```
 31 job boards ──► fetch.py ──► 7,301 roles
-                   │  code: title contains product / PM / GM?     (stage 1: cheap, loose)   → 658
-                   │  code: merge one job posted in several cities                           → 571
-                   │  code: pay range, remote flag                 (facts, not judgment)
+                   │  title contains product / PM / GM?        → 658
+                   │  merge the same job posted in several cities → 571
+                   │  pay range, remote flag
                    ▼
-                 571 postings ──► Jev: 3 questions per posting     (stage 2: meaning)
-                                   │  role       pm / adjacent / not_pm / unclear
-                                   │  ai_focus   ai_product / ai_feature / not_ai / unclear
+                 571 postings ──► Jev, 3 questions per posting
+                                   │  role            pm / adjacent / not_pm / unclear
+                                   │  ai_focus        ai_product / ai_feature / not_ai / unclear
                                    │  ml_background   yes/no probability
                                    ▼
                                  buckets, with a confidence floor per question
                                  anything under its floor goes to review
 ```
 
-**Code computes facts, the model judges meaning.** Pay ranges, dates, and deduplication are arithmetic and string matching, which models are bad at and code gets right every time. Jev only gets questions that need reading comprehension. Deduplication alone removed 13% of postings, the same job listed once per city, before any model saw them.
+The title filter runs first and is deliberately loose. A sales role that gets through costs a fraction of a cent to check, and Jev screens it out. A real PM role that the filter drops never reaches Jev at all.
 
-**Every question has an escape option.** `unclear` is always available, and the instructions say when to use it. A model forced to pick between two wrong answers still picks one, confidently.
+Code handles pay ranges, remote flags, and duplicates, since those are exact matching and don't need a model. Merging duplicates removed 13% of postings before Jev saw any of them.
 
-**One judgment per question.** "Is this an AI PM role?" is two questions: is it PM work, and is the product AI. Combining them happens in the bucket rules, where the logic is visible and testable.
+I split "is this an AI PM job?" into separate questions, so when an answer is wrong I can tell which part went wrong. Code combines the answers into buckets using rules that are easy to read and change.
 
-**Floors are per question and measured, not guessed.** They start at 0.7 for `role` and 0.6 for `ai_focus`, and move based on where the wrong answers cluster in the eval.
+Every question has an `unclear` option, so Jev isn't forced to pick between two wrong answers. Answers also have to clear a confidence floor (0.7 for `role`, 0.6 for `ai_focus`) or they go to a review bucket. I haven't tuned those floors yet.
 
-All questions, floors, and bucket rules live in [`radar/spec.json`](radar/spec.json). Changing behavior means editing that file, not the code.
+All questions, floors, and bucket rules are in [`radar/spec.json`](radar/spec.json).
 
 ## Evaluation
 
-The question isn't "is Jev accurate." It's "is Jev better than the rule it replaces, by enough to justify the call."
+I compared Jev against a title-only keyword rule ([`radar/baseline.py`](radar/baseline.py)), since that's what it would replace.
 
-1. A fixed random sample of 40 postings is labeled by hand, reading the full description, before looking at any model output ([`eval/label.py`](eval/label.py)).
-2. Jev and a title regex ([`radar/baseline.py`](radar/baseline.py)) both answer the same postings.
-3. [`eval/score.py`](eval/score.py) reports agreement with the hand labels for each, and lists every posting Jev got wrong with the confidence it gave. Wrong answers at high confidence mean the question needs rewriting; wrong answers at low confidence mean the floor is doing its job.
+I labeled a random sample of 40 postings by reading each full description in [`eval/label.py`](eval/label.py), which doesn't show Jev's answers. Then [`eval/score.py`](eval/score.py) scored Jev and the keyword rule against my labels.
 
 ### Results
 
-Measured on 2026-09-29 with `jev-1.13.0`. Full detail in [`eval/results.md`](eval/results.md).
+Measured on 2026-09-29 with `jev-1.13.0`. Every miss is listed in [`eval/results.md`](eval/results.md).
 
-| | Jev | Title regex |
+| | Jev | Title rule |
 |---|---|---|
-| Is it a PM role? (40 labeled postings) | **40/40** | 39/40 |
-| Is it AI product work? (15 labeled PM roles) | **15/15** | 5/15 |
-| Full run, 571 postings | 20.6 s · $0.046 | instant · $0 |
-| Median latency per posting | 278 ms | n/a |
+| Is it a PM role? (40 labeled postings) | 40/40 | 39/40 |
+| Is it AI product work? (15 labeled PM roles) | 15/15 | 5/15 |
+| Needs hands-on ML background? (18 labeled PM roles) | 17/18 | |
+| Sent to review, full run | 82/571 (14%) | |
+| Cost, full run of 571 postings | $0.046 | $0 |
+| Time per posting, median (95th percentile) | 278 ms (374 ms) | instant |
 
-**What this says:**
+My guess was right. On the PM question, the title rule nearly matched Jev, missing only "Director of Product, Growth/AI." On the AI question, the title rule missed 10 of 15 because their titles don't mention AI, and Jev missed none. Jev is only needed for the AI question, but I kept it on both because the cost comes almost entirely from reading the posting, and an extra question adds very little.
 
-- **For "is it a PM role," the regex nearly ties.** Titles are good at that question. The regex's one miss was "Director of Product, Growth/AI." If that were the only question, the model wouldn't be worth adding.
-- **For "is it AI work," the regex misses two in three.** It called 10 of the 15 AI roles non-AI, because their titles never mention AI. Jev read the descriptions and got all 15. This is the question the model is worth paying for, at under five cents a run.
-- **The review bucket is the cost of the floors.** On the full run, 82 of 571 postings (14%) landed in review: 52 where the `role` answer came in under its 0.7 floor, and 30 PM roles where `ai_focus` came in under 0.6 or was `unclear`. Nothing in the labeled sample shows those floors are too strict or too loose yet. That needs labels drawn from the review bucket itself.
+The ML background result only shows that Jev rarely flags ML when it isn't needed. None of the 18 labeled roles needed hands-on ML, so it doesn't show whether Jev can spot one that does. The AI result has the same gap in the other direction: none of the 18 were labeled not AI.
 
-**Limits, stated plainly:**
+The full run cost about $0.08 per 1,000 postings and took 20.6 seconds with 12 calls in parallel. Confusion grids, token counts, and the full speed breakdown are in [`eval/details.md`](eval/details.md).
 
-- **40 labels is a small sample.** 15/15 is not "100% accurate." It means no errors in 15 tries, which is consistent with a real error rate of up to about 20%. The next step is more labels, weighted toward the review bucket.
-- **The finer AI question is less settled.** On the three-way split (`ai_product` / `ai_feature` / `not_ai`), Jev and the labels agree on 9 of 18. The labels put every AI-involved role in `ai_product`; Jev put 6 of them in `ai_feature`. That's a definition problem, not a model problem, and it's the next change to the spec.
-- **Three labels were corrected after review.** They were key slips (a designer, a program manager, and an account executive marked "PM" by mistake), caught because they contradicted the notes on similar postings. Each correction is marked in [`eval/labels.csv`](eval/labels.csv).
-- **The model version is pinned in the results.** Scores are for `jev-1.13.0`. A newer version needs a rerun of the same 40 before the numbers carry over.
+### What it found
+
+Of 7,301 open roles at 31 companies, Jev sorted 95 into AI PM roles, 4 of them needing hands-on ML, and another 42 into PM roles on products adding AI features. That's 137 roles to read instead of 7,301. Another 82 went to review, and the other 352 were either not PM or PM roles without AI.
+
+### Limits
+
+Forty labels is a small sample. Even with 15 of 15 correct, the real error rate could be as high as about 20%.
+
+Jev and I use different definitions of an AI product. I labeled every role that involves AI as `ai_product`, and Jev put 6 of them in `ai_feature`, meaning a regular product that's adding AI. The scores above count both as AI work, so this only affects the exact label, but I'd write a clearer definition before relying on that split.
+
+I corrected three of my labels after review: a designer, a program manager, and an account executive that I had mistakenly marked as PM. Each contradicted my notes on nearly identical postings. I made these fixes after seeing Jev's answers, so I only corrected clear mistakes like these. Each one is marked in [`eval/labels.csv`](eval/labels.csv).
+
+I'm the only person who labeled the data. A second person labeling the same 40 would show how reliable the labels are.
+
+The scores are for `jev-1.13.0`. A newer version needs a rerun on the same 40 postings before these numbers apply to it.
+
+### Next
+
+1. Label the targeted batch in [`eval/targeted.csv`](eval/targeted.csv): 30 postings picked to cover what the random 40 couldn't, including PM roles Jev says aren't AI, roles that may need hands-on ML, and postings from the review bucket. [`eval/pick.py`](eval/pick.py) explains how they were chosen. Most were picked using Jev's own answers, so they're scored per group, not as one accuracy number.
+2. Write a clearer definition of "AI product," then relabel and rerun.
+3. Get a second person to label the same postings.
+4. Check a sample of the titles the keyword filter rejected, to make sure real PM roles aren't dropped before Jev sees them.
 
 ## Run it
 
@@ -83,12 +98,22 @@ python3 radar/run.py --sample 40           # review a sample before running ever
 python3 radar/run.py                       # everything; results cached, reruns are free
 ```
 
-Jev is called through TypeSafe's API directly if `TYPESAFE_API_KEY` is set, otherwise through [Vercel AI Gateway](https://vercel.com/docs/ai-gateway/sdks-and-apis/typesafe) with `AI_GATEWAY_API_KEY`. Either key can live in your environment or in `~/.config/typesafe/.env` / `~/.config/ai-gateway/.env`, never in the repo. Output lands in `output/summary.md` and `output/results.csv`.
+The code calls Jev through TypeSafe's API if `TYPESAFE_API_KEY` is set, and through [Vercel AI Gateway](https://vercel.com/docs/ai-gateway/sdks-and-apis/typesafe) with `AI_GATEWAY_API_KEY` otherwise. Keep keys in your environment or in `~/.config/typesafe/.env` / `~/.config/ai-gateway/.env`, not in the repo. Output goes to `output/summary.md` and `output/results.csv`.
 
-To reproduce the eval: `python3 eval/label.py`, then `python3 radar/run.py --ids eval/labels.csv`, then `python3 eval/score.py`.
+To reproduce the eval, run `python3 eval/label.py`, then `python3 radar/run.py --ids eval/labels.csv`, then `python3 eval/score.py`.
 
-To scan different companies, edit [`radar/boards.json`](radar/boards.json), or put your own list in `radar/boards.local.json` (gitignored, used automatically when present). Any company on Greenhouse, Ashby, Lever, or Workable works.
+To label and score the targeted batch:
 
-## Credits
+```bash
+python3 eval/label.py --ids eval/targeted.csv --out eval/labels-targeted.csv
+python3 radar/run.py --ids eval/labels-targeted.csv
+python3 eval/score.py --labels eval/labels-targeted.csv --strata eval/targeted.csv --out eval/results-targeted.md
+```
 
-The question-design approach draws on Aakash Gupta's [how-to-jev](https://www.product-growth.com) skill (MIT). The code is written from scratch for this project.
+To scan other companies, edit [`radar/boards.json`](radar/boards.json), or put your own list in `radar/boards.local.json`, which is gitignored and used automatically when present. Any company on Greenhouse, Ashby, Lever, or Workable works.
+
+## How this was built
+
+I built this with [Claude Code](https://claude.com/claude-code), which wrote the code and drafted the questions. I set the direction, labeled the evaluation set, reviewed every result, and decided what to measure and report.
+
+The approach to writing questions for Jev draws on Aakash Gupta's [how-to-jev](https://www.aibyaakash.com/p/jev-ai-model) skill (MIT).

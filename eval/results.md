@@ -49,5 +49,5 @@ None.
 | Stripe | Staff Product Manager, Connect | ai_product | ai_feature | 0.5 |
 | Datadog | Product Management Intern | ai_product | ai_feature | 0.33 |
 
-`ml_background` at a 0.5 cut: 17/18 (94%) agree. 0 of 18 labeled PM roles need hands-on ML, so this is mostly a test of false alarms.
+`ml_background` at a 0.5 cut: 17/18 (94%) agree. 0 of 18 labeled PM roles need hands-on ML, so this is only a test of false alarms.
 

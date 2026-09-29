@@ -8,9 +8,12 @@ Headline: the two decisions the buckets actually make, "is this a PM role?" and
 posting Jev got wrong with the confidence it gave. Wrong at high confidence means the
 question needs rewriting; wrong at low confidence means the floor is doing its job.
 
-Usage: python3 eval/score.py
+Usage:
+  python3 eval/score.py                                   # the random sample
+  python3 eval/score.py --labels eval/labels-targeted.csv --strata eval/targeted.csv \
+      --out eval/results-targeted.md                      # the targeted batch, per stratum
 """
-import csv, json
+import argparse, csv, json
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
@@ -29,7 +32,13 @@ def pct(k, n):
 
 
 def main():
-    labels = {r["id"]: r for r in csv.DictReader((ROOT / "eval" / "labels.csv").open())}
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--labels", default=str(ROOT / "eval" / "labels.csv"))
+    ap.add_argument("--strata", help="eval/targeted.csv: also score each stratum on its own")
+    ap.add_argument("--out", default=str(ROOT / "eval" / "results.md"))
+    a = ap.parse_args()
+
+    labels = {r["id"]: r for r in csv.DictReader(open(a.labels))}
     results = {r["id"]: r for r in map(json.loads, (ROOT / "output" / "results.jsonl").read_text().splitlines())}
     ids = [i for i in labels if i in results]
     L, R = labels, results
@@ -37,7 +46,7 @@ def main():
     lines = [f"# Eval: {len(ids)} hand-labeled postings", ""]
     if len(ids) < len(labels):
         lines += [f"{len(labels) - len(ids)} labeled postings have no Jev result yet. "
-                  "Run `radar/run.py --ids eval/labels.csv`.", ""]
+                  f"Run `radar/run.py --ids {a.labels}`.", ""]
 
     pm_ids = [i for i in ids if is_pm(L[i]["role"])]
     ai_ids = [i for i in pm_ids if is_ai(L[i]["ai_focus"]) is not None]
@@ -79,11 +88,31 @@ def main():
     ml = [i for i in pm_ids if L[i]["ml_background"] in ("true", "false")]
     if ml:
         hit = sum((R[i]["ml_background"] >= 0.5) == (L[i]["ml_background"] == "true") for i in ml)
-        pos = sum(L[i]["ml_background"] == "true" for i in ml)
+        pos = [i for i in ml if L[i]["ml_background"] == "true"]
+        caught = sum(R[i]["ml_background"] >= 0.5 for i in pos)
         lines += [f"`ml_background` at a 0.5 cut: {pct(hit, len(ml))} agree. "
-                  f"{pos} of {len(ml)} labeled PM roles need hands-on ML, so this is mostly a test of false alarms.", ""]
+                  f"{len(pos)} of {len(ml)} labeled PM roles need hands-on ML"
+                  + (f"; Jev flagged {caught} of them." if pos else ", so this is only a test of false alarms."), ""]
 
-    out = ROOT / "eval" / "results.md"
+    if a.strata:
+        strata = {r["id"]: r["stratum"] for r in csv.DictReader(open(a.strata))}
+        lines += ["## By stratum", "",
+                  "Strata were picked from Jev's own answers (see eval/pick.py), so each is scored on its own.", "",
+                  "| Stratum | Postings | PM role? | AI work? (labeled PM, definite) | Needs ML? (labeled PM) |",
+                  "|---|---|---|---|---|"]
+        for name in dict.fromkeys(strata.values()):
+            s_ids = [i for i in ids if strata.get(i) == name]
+            s_pm = [i for i in s_ids if is_pm(L[i]["role"])]
+            s_ai = [i for i in s_pm if is_ai(L[i]["ai_focus"]) is not None]
+            s_ml = [i for i in s_pm if L[i]["ml_background"] in ("true", "false")]
+            lines.append(
+                f"| {name} | {len(s_ids)} "
+                f"| {pct(sum(is_pm(R[i]['role']) == is_pm(L[i]['role']) for i in s_ids), len(s_ids))} "
+                f"| {pct(sum(is_ai(R[i]['ai_focus']) == is_ai(L[i]['ai_focus']) for i in s_ai), len(s_ai))} "
+                f"| {pct(sum((R[i]['ml_background'] >= 0.5) == (L[i]['ml_background'] == 'true') for i in s_ml), len(s_ml))} |")
+        lines.append("")
+
+    out = Path(a.out)
     out.write_text("\n".join(lines) + "\n")
     print("\n".join(lines))
     print(f"→ {out}")

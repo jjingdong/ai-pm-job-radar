@@ -4,14 +4,15 @@
 Labels are made by a person reading the posting, before looking at what Jev said.
 Nothing here calls Jev.
 
-Usage: python3 eval/label.py --n 40
-Resumable: already-labeled ids are skipped. Writes eval/labels.csv.
+Usage:
+  python3 eval/label.py --n 40                    # the random sample → eval/labels.csv
+  python3 eval/label.py --ids eval/targeted.csv --out eval/labels-targeted.csv
+Resumable: already-labeled ids are skipped.
 """
 import argparse, csv, json, random, textwrap
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
-LABELS = ROOT / "eval" / "labels.csv"
 FIELDS = ["id", "company", "title", "role", "ai_focus", "ml_background", "note"]
 ROLE = {"p": "pm", "a": "adjacent", "n": "not_pm", "u": "unclear"}
 AI = {"a": "ai_product", "f": "ai_feature", "n": "not_ai", "u": "unclear"}
@@ -31,15 +32,22 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--n", type=int, default=40)
     ap.add_argument("--input", default=str(ROOT / "data" / "postings.jsonl"))
+    ap.add_argument("--ids", help="label these postings, in order (a csv with an id column) instead of a random sample")
+    ap.add_argument("--out", default=str(ROOT / "eval" / "labels.csv"))
     a = ap.parse_args()
+    out = Path(a.out)
 
     postings = [json.loads(l) for l in Path(a.input).read_text().splitlines() if l.strip()]
-    sample = random.Random(42).sample(postings, min(a.n, len(postings)))
+    if a.ids:
+        by_id = {p["id"]: p for p in postings}
+        sample = [by_id[r["id"]] for r in csv.DictReader(open(a.ids)) if r["id"] in by_id]
+    else:
+        sample = random.Random(42).sample(postings, min(a.n, len(postings)))
     done = set()
-    if LABELS.exists():
-        done = {r["id"] for r in csv.DictReader(LABELS.open())}
-    new = not LABELS.exists()
-    with LABELS.open("a", newline="") as f:
+    if out.exists():
+        done = {r["id"] for r in csv.DictReader(out.open())}
+    new = not out.exists()
+    with out.open("a", newline="") as f:
         w = csv.DictWriter(f, fieldnames=FIELDS)
         if new:
             w.writeheader()
@@ -53,7 +61,10 @@ def main():
             try:
                 role = pick("\nrole?  (p)m  (a)djacent  (n)ot PM  (u)nclear  (q)uit: ", ROLE)
                 ai = pick("AI?    (a)i product  ai (f)eature  (n)ot AI  (u)nclear: ", AI) if role == "pm" else ""
-                ml = pick("needs hands-on ML background?  (y)es  (n)o: ", YN) if role == "pm" else ""
+                ml = pick("needs hands-on ML background?  (y)es  (n)o\n"
+                          "  test: could a PM who has shipped AI products, but never trained a model, meet the\n"
+                          "  requirement? If yes, answer n. 'AI product experience' and 'work with ML teams' are n: ",
+                          YN) if role == "pm" else ""
                 note = input("note (optional): ").strip()
             except (KeyboardInterrupt, EOFError):
                 print("\nSaved. Rerun to continue.")
@@ -61,7 +72,7 @@ def main():
             w.writerow(dict(id=p["id"], company=p["company"], title=p["title"],
                             role=role, ai_focus=ai, ml_background=ml, note=note))
             f.flush()
-    print(f"\nAll {len(sample)} labeled → {LABELS}")
+    print(f"\nAll {len(sample)} labeled → {out}")
 
 
 if __name__ == "__main__":
