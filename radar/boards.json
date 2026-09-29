@@ -1,0 +1,18 @@
+{
+  "_comment": "Public ATS job boards. A broad list of well-known AI and tech companies, chosen for coverage, not as a target list.",
+  "greenhouse": {
+    "Anthropic": "anthropic", "Databricks": "databricks", "Scale AI": "scaleai", "Stripe": "stripe",
+    "Figma": "figma", "Airbnb": "airbnb", "Pinterest": "pinterest", "Dropbox": "dropbox",
+    "Cloudflare": "cloudflare", "Datadog": "datadog", "Instacart": "instacart", "Asana": "asana",
+    "Robinhood": "robinhood", "Coinbase": "coinbase", "Brex": "brex", "Vercel": "vercel",
+    "Twilio": "twilio", "Discord": "discord"
+  },
+  "ashby": {
+    "OpenAI": "openai", "Ramp": "ramp", "Linear": "linear", "Cursor": "cursor",
+    "ElevenLabs": "elevenlabs", "Cohere": "cohere", "Supabase": "supabase", "Deepgram": "deepgram",
+    "Sierra": "sierra", "Decagon": "decagon", "Writer": "writer", "Lovable": "lovable"
+  },
+  "lever": {
+    "Palantir": "palantir"
+  }
+}

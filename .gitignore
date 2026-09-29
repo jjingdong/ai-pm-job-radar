@@ -1,0 +1,9 @@
+# Secrets. The key lives in ~/.config/ai-gateway/.env, never in this repo.
+.env
+.env.*
+
+# Fetched postings and Jev answers are regenerated on every run.
+data/
+output/
+__pycache__/
+.DS_Store
