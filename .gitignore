@@ -10,3 +10,8 @@ __pycache__/
 
 # Private company list (your own targets). Never commit.
 radar/boards.local.json
+
+# Substack drafts, kept out of the repo.
+substack-draft.md
+substack-images/
+substack-tables/

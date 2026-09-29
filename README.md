@@ -6,6 +6,8 @@ I tested it on PM job listings, a problem I know well. Most job alerts filter on
 
 My guess going in was that titles work well enough for the first question but not for the second, because most AI PM roles don't have "AI" in the title. This project tests that guess on real listings from 31 AI and tech companies.
 
+I wrote about what I learned from this project in [I tested a decision model on 571 job listings](https://aiproductnote.substack.com/p/i-tested-a-decision-model-on-571).
+
 ## The problem
 
 A scan on 2026-09-29 returned 7,301 open roles. 658 had "product," "PM," or "GM" in the title, and many of those aren't PM jobs. Seventeen are "Account Executive, Product Sales" roles at Stripe, and others include "Strategic Finance Manager, Product" and "Business Systems Analyst, New Product Introduction."
