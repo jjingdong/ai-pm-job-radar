@@ -40,7 +40,7 @@ def ask(key, model, questions, state, timeout=60):
     req = urllib.request.Request(ENDPOINT, data=body, method="POST", headers={
         "Authorization": f"Bearer {key}", "Content-Type": "application/json",
         "User-Agent": "ai-pm-job-radar"})
-    for attempt in range(6):
+    for attempt in range(4):
         start = time.monotonic()
         try:
             with urllib.request.urlopen(req, timeout=timeout) as r:
@@ -48,12 +48,14 @@ def ask(key, model, questions, state, timeout=60):
             out["latency_ms"] = round((time.monotonic() - start) * 1000)
             return out
         except urllib.error.HTTPError as e:
-            if e.code in (429, 500, 502, 503, 529) and attempt < 5:
-                time.sleep(min(2 ** attempt, 20) + random.random())
+            if e.code in (429, 500, 502, 503, 529) and attempt < 3:
+                wait = e.headers.get("Retry-After")
+                wait = float(wait) if wait and wait.replace(".", "", 1).isdigit() else 5 * 3 ** attempt
+                time.sleep(min(wait, 60) + random.random())   # 5s, 15s, 45s: back off, don't hammer
                 continue
             raise RuntimeError(f"HTTP {e.code}: {e.read().decode(errors='replace')[:300]}") from None
         except (urllib.error.URLError, TimeoutError) as e:
-            if attempt < 5:
+            if attempt < 3:
                 time.sleep(min(2 ** attempt, 20))
                 continue
             raise RuntimeError(f"network: {e}") from None

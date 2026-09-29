@@ -99,8 +99,10 @@ def main():
                     r = f.result()
                 except RuntimeError as e:
                     errors.append(str(e))
-                    if str(e).startswith(("HTTP 401", "HTTP 402", "HTTP 403")):
-                        ex.shutdown(cancel_futures=True)   # key or billing problem: every call will fail
+                    if str(e).startswith(("HTTP 401", "HTTP 402", "HTTP 403", "HTTP 429")):
+                        # Key, billing, or provider capacity: every remaining call will fail the same way.
+                        # Stop instead of piling on; the cache keeps whatever already succeeded.
+                        ex.shutdown(cancel_futures=True)
                         break
                     continue
                 k = jev.cache_key(model, qs, s)
