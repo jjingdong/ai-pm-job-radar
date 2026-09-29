@@ -9,6 +9,9 @@ Facts are computed here and handed to Jev as fields: pay range, remote flag, tex
 Jev is bad at arithmetic and string matching; code is good at both.
 
 Usage: python3 radar/fetch.py --out data/postings.jsonl
+
+Company list: radar/boards.local.json if it exists (private, gitignored, for your own
+targets), otherwise radar/boards.json. Pass --boards to choose explicitly.
 """
 import argparse, hashlib, html, json, re, sys, urllib.request
 from concurrent.futures import ThreadPoolExecutor
@@ -20,6 +23,7 @@ URLS = {
     "greenhouse": "https://boards-api.greenhouse.io/v1/boards/{}/jobs?content=true",
     "ashby": "https://api.ashbyhq.com/posting-api/job-board/{}?includeCompensation=true",
     "lever": "https://api.lever.co/v0/postings/{}?mode=json",
+    "workable": "https://apply.workable.com/api/v1/widget/accounts/{}?details=true",
 }
 # Loose on purpose: stage 1 should never drop a real PM role. Jev handles the false positives.
 MAYBE_PRODUCT = re.compile(r"\bproduct\b|\bpm\b|\bgm\b|general manager", re.I)
@@ -50,6 +54,10 @@ def normalize(ats, company, j):
         lists = " ".join(f"{x.get('text', '')} {x.get('content', '')}" for x in j.get("lists") or [])
         return dict(company=company, title=j.get("text", ""), location=cats.get("location", ""),
                     url=j.get("hostedUrl", ""), body=text(f"{j.get('description', '')} {lists}"))
+    if ats == "workable":
+        loc = ", ".join(filter(None, [j.get("city"), j.get("state"), j.get("country")]))
+        return dict(company=company, title=j.get("title", ""), location=loc,
+                    url=j.get("url", ""), body=text(j.get("description")), remote_flag=j.get("telecommuting"))
 
 
 def pay_range(body):
@@ -84,9 +92,13 @@ def board(args):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="data/postings.jsonl")
+    ap.add_argument("--boards", help="company list; defaults to boards.local.json if present, else boards.json")
     a = ap.parse_args()
 
-    boards = json.loads((HERE / "boards.json").read_text())
+    local = HERE / "boards.local.json"
+    path = Path(a.boards) if a.boards else (local if local.exists() else HERE / "boards.json")
+    print(f"company list: {path.name}")
+    boards = json.loads(path.read_text())
     work = [(ats, name, slug) for ats, m in boards.items() if ats in URLS for name, slug in m.items()]
     total, kept, failed = 0, [], []
     with ThreadPoolExecutor(12) as ex:

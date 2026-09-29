@@ -7,3 +7,6 @@ data/
 output/
 __pycache__/
 .DS_Store
+
+# Private company list (your own targets). Never commit.
+radar/boards.local.json
