@@ -6,7 +6,7 @@ Usage:
   python3 radar/run.py --sample 40          # the review checkpoint: under a cent
   python3 radar/run.py                      # everything; cached postings are free
 
-Writes output/results.jsonl, output/results.csv, and output/summary.md.
+Writes output/results.jsonl, output/results.csv, output/summary.md, and output/run.json.
 """
 import argparse, csv, json, random, sys, time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -168,6 +168,9 @@ def main():
         md += ["", f"## {name} ({len(rows)})", "", "| Company | Title | Remote | Pay |", "|---|---|---|---|"]
         md += [f"| {r['company']} | [{r['title']}]({r['url']}) | {r['remote']} | {r['pay']} |" for r in rows]
     (out / "summary.md").write_text("\n".join(md) + "\n")
+    (out / "run.json").write_text(json.dumps({
+        "postings": len(results), "new_calls": done, "spent": round(spent, 4),
+        "seconds": round(seconds, 1), "models": sorted(served_by)}) + "\n")
 
     print(head)
     for b, n in sorted(counts.items(), key=lambda x: -x[1]):

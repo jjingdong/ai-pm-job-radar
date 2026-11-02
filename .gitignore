@@ -5,6 +5,7 @@
 # Fetched postings and Jev answers are regenerated on every run.
 data/
 output/
+site/
 __pycache__/
 .DS_Store
 

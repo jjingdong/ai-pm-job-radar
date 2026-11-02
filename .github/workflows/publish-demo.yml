@@ -1,0 +1,67 @@
+# Refreshes the public demo once a day. The Jev key stays in a repository secret and
+# never reaches the page. Only radar/boards.json is used: the private company list is
+# gitignored, and build_site.py refuses any company outside the public list.
+name: Publish demo
+
+on:
+  schedule:
+    - cron: "17 12 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      # Answers are cached so only new postings cost anything.
+      - uses: actions/cache/restore@v6
+        with:
+          path: data/cache.jsonl
+          key: jev-answers-${{ github.run_id }}
+          restore-keys: jev-answers-
+
+      - name: Fetch public job boards
+        run: python3 radar/fetch.py --boards radar/boards.json --out data/postings.jsonl
+
+      - name: Ask Jev about new postings
+        env:
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+        run: python3 radar/run.py
+
+      # Runs even if Jev failed partway, so answers already paid for are kept.
+      - uses: actions/cache/save@v6
+        if: always() && hashFiles('data/cache.jsonl') != ''
+        with:
+          path: data/cache.jsonl
+          key: jev-answers-${{ github.run_id }}
+
+      - name: Build the page
+        run: python3 radar/build_site.py
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

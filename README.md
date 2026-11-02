@@ -8,6 +8,8 @@ My guess going in was that titles work well enough for the first question but no
 
 I wrote about what I learned from this project in [I tested a decision model on 571 job listings](https://aiproductnote.substack.com/p/i-tested-a-decision-model-on-571).
 
+**[See the live demo](https://jjingdong.github.io/ai-pm-job-radar/):** today's roles, refreshed daily, with Jev's answer next to the title filter's.
+
 ## The problem
 
 A scan on 2026-09-29 returned 7,301 open roles. 658 had "product," "PM," or "GM" in the title, and many of those aren't PM jobs. Seventeen are "Account Executive, Product Sales" roles at Stripe, and others include "Strategic Finance Manager, Product" and "Business Systems Analyst, New Product Introduction."
@@ -111,6 +113,8 @@ python3 eval/label.py --ids eval/targeted.csv --out eval/labels-targeted.csv
 python3 radar/run.py --ids eval/labels-targeted.csv
 python3 eval/score.py --labels eval/labels-targeted.csv --strata eval/targeted.csv --out eval/results-targeted.md
 ```
+
+The live demo is a static page. A [daily workflow](.github/workflows/publish-demo.yml) fetches the boards, sends only new postings to Jev, and runs `python3 radar/build_site.py`. The Jev key stays in a repository secret and never reaches the page. The build publishes titles, not posting text, and refuses any company outside `radar/boards.json`, so a private list can't reach it.
 
 To scan other companies, edit [`radar/boards.json`](radar/boards.json), or put your own list in `radar/boards.local.json`, which is gitignored and used automatically when present. Any company on Greenhouse, Ashby, Lever, or Workable works.
 

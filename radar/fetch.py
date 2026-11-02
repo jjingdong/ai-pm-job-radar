@@ -127,6 +127,9 @@ def main():
     with open(a.out, "w") as f:
         for p in out:
             f.write(json.dumps(p) + "\n")
+    stats = dict(boards_total=len(work), boards_ok=len(work) - len(failed), open_roles=total,
+                 kept=len(kept), unique=len(out))
+    Path(a.out).with_name("fetch-stats.json").write_text(json.dumps(stats) + "\n")
     print(f"{len(work) - len(failed)}/{len(work)} boards · {total:,} open roles · "
           f"{len(kept):,} kept by the title filter · {len(out):,} after merging multi-city duplicates → {a.out}")
     for e in failed:
