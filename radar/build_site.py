@@ -109,7 +109,7 @@ def funnel(stats, ai_total):
         (f"{ai_total:,}", "with AI work"),
     ]
     items = "".join(f"<li><b>{n}</b> {label}</li>" for n, label in steps)
-    return f'<ol class="funnel" aria-label="How today\'s list was narrowed">{items}</ol>'
+    return f'<ol class="funnel" aria-label="How this list was narrowed">{items}</ol>'
 
 
 def main():

@@ -1,11 +1,10 @@
-# Refreshes the public demo once a day. The Jev key stays in a repository secret and
-# never reaches the page. Only radar/boards.json is used: the private company list is
+# Refreshes the public demo only when the repo owner clicks "Run workflow" in the Actions
+# tab. There is no schedule, so nothing spends money on its own. The Jev key stays in a
+# repository secret and never reaches the page. Only radar/boards.json is used: the private company list is
 # gitignored, and build_site.py refuses any company outside the public list.
 name: Publish demo
 
 on:
-  schedule:
-    - cron: "17 12 * * *"
   workflow_dispatch:
 
 permissions:
@@ -24,7 +23,8 @@ jobs:
         with:
           python-version: "3.12"
 
-      # Answers are cached so only new postings cost anything.
+      # Answers are cached so only new postings cost anything. GitHub drops a cache that
+      # goes unused for 7 days, so a run after a longer gap re-reads every posting.
       - uses: actions/cache/restore@v6
         with:
           path: data/cache.jsonl
