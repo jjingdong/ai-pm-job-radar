@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI PM Job Radar</title>
+<meta name="description" content="A list of AI product manager roles at AI and tech companies, sorted by Jev, a decision model, and compared with a title filter.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='none' stroke='%23266ea8' stroke-width='3'/%3E%3Ccircle cx='16' cy='16' r='5' fill='%23266ea8'/%3E%3C/svg%3E">
+<style>
+:root {
+  color-scheme: light;
+  --bg: oklch(1 0 0);
+  --panel: oklch(0.972 0.006 248);
+  --line: oklch(0.915 0.01 248);
+  --line-strong: oklch(0.72 0.015 248);
+  --ink: oklch(0.24 0.025 248);
+  --mid: oklch(0.38 0.02 248);
+  --muted: oklch(0.47 0.02 248);
+  --primary: oklch(0.5 0.125 248);
+  --primary-ink: oklch(0.43 0.12 248);
+  --wash: oklch(0.95 0.025 248);
+  --z-sticky: 10;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 0.9375rem/1.5 ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+a { color: var(--primary-ink); text-underline-offset: 0.15em; }
+a:hover { color: var(--ink); }
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 3px; }
+.wrap { max-width: 1160px; margin: 0 auto; padding: 0 24px; }
+
+header.top { padding: 48px 0 32px; }
+h1 { margin: 0 0 8px; font-size: 1.75rem; line-height: 1.2; font-weight: 650; letter-spacing: -0.015em; }
+.intro { margin: 0; max-width: 68ch; font-size: 1.0625rem; color: var(--mid); text-wrap: pretty; }
+.updated { margin: 12px 0 0; font-size: 0.875rem; color: var(--muted); }
+.stale { margin: 12px 0 0; padding: 8px 12px; max-width: 68ch; background: var(--wash); border-radius: 6px; font-size: 0.875rem; }
+
+.finding { margin: 32px 0 0; max-width: 40ch; font-size: 1.375rem; line-height: 1.3; font-weight: 600; letter-spacing: -0.01em; text-wrap: balance; }
+.funnel { list-style: none; margin: 16px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 0; font-size: 0.875rem; color: var(--mid); }
+.funnel li { display: flex; align-items: baseline; gap: 4px; }
+.funnel li + li::before { content: "\2192"; margin: 0 10px; color: var(--muted); }
+.funnel b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.tools { padding: 12px 0; background: var(--bg); border-bottom: 1px solid var(--line); }
+@media (min-width: 900px) and (min-height: 700px) {
+  .tools { position: sticky; top: 0; z-index: var(--z-sticky); }
+}
+.tabs { display: flex; flex-wrap: wrap; gap: 4px; }
+.tabs button {
+  appearance: none; border: 1px solid transparent; background: transparent; color: var(--mid);
+  font: inherit; font-size: 0.875rem; font-weight: 500; padding: 6px 12px; border-radius: 6px; cursor: pointer;
+  min-height: 36px; transition: background-color 160ms var(--ease), color 160ms var(--ease);
+}
+.tabs button:hover { background: var(--panel); color: var(--ink); }
+.tabs button[aria-pressed="true"] { background: var(--primary); color: #fff; }
+.tabs .n { font-variant-numeric: tabular-nums; opacity: 0.8; margin-left: 4px; font-weight: 400; }
+.filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 10px; }
+.filters input[type="search"], .filters select {
+  font: inherit; font-size: 0.875rem; color: var(--ink); background: var(--bg);
+  border: 1px solid var(--line-strong); border-radius: 6px; padding: 6px 10px; min-height: 36px;
+}
+.filters input[type="search"] { width: 240px; max-width: 100%; }
+.filters input[type="search"]::placeholder { color: var(--muted); }
+.filters select { max-width: 180px; }
+.check { display: inline-flex; align-items: center; gap: 6px; font-size: 0.875rem; color: var(--mid); min-height: 36px; cursor: pointer; }
+.check input { accent-color: var(--primary); width: 16px; height: 16px; margin: 0; }
+.count { margin-left: auto; font-size: 0.875rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.view-note { margin: 16px 0 0; max-width: 75ch; font-size: 0.875rem; color: var(--mid); }
+
+table { width: 100%; margin-top: 8px; border-collapse: collapse; font-size: 0.875rem; }
+th { text-align: left; font-size: 0.8125rem; font-weight: 500; color: var(--muted); padding: 8px 12px 8px 0; border-bottom: 1px solid var(--line-strong); white-space: nowrap; }
+td { padding: 10px 12px 10px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr[hidden] { display: none; }
+tbody tr:hover { background: var(--panel); }
+.company { font-weight: 500; white-space: nowrap; }
+td[data-label="Jev"] { white-space: nowrap; }
+.role { min-width: 240px; }
+.role a { color: var(--ink); text-decoration: none; }
+.role a:hover { color: var(--primary-ink); text-decoration: underline; }
+.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.quiet, .more { color: var(--muted); }
+.more { white-space: nowrap; }
+.conf { color: var(--muted); font-variant-numeric: tabular-nums; margin-left: 2px; }
+.tag { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 4px; background: var(--panel); color: var(--mid); font-size: 0.75rem; line-height: 1.5; }
+.agrees { color: var(--muted); }
+.differs { color: var(--primary-ink); font-weight: 600; }
+td:last-child, th:last-child { white-space: nowrap; padding-right: 0; }
+
+.empty { margin: 32px 0; color: var(--mid); }
+.empty[hidden] { display: none; }
+.linkish { appearance: none; border: 0; background: none; padding: 0; font: inherit; color: var(--primary-ink); text-decoration: underline; text-underline-offset: 0.15em; cursor: pointer; }
+
+.trust { margin-top: 56px; padding: 32px 0 48px; background: var(--panel); border-top: 1px solid var(--line); }
+.trust h2 { margin: 0 0 12px; font-size: 1.125rem; font-weight: 650; }
+.trust p { margin: 0 0 10px; max-width: 68ch; color: var(--mid); text-wrap: pretty; }
+.trust .links { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 8px 20px; }
+.trust .fine { margin-top: 16px; font-size: 0.8125rem; color: var(--muted); }
+
+@media (max-width: 900px) {
+  .wrap { padding: 0 16px; }
+  header.top { padding-top: 32px; }
+  .finding { font-size: 1.25rem; }
+  .funnel { flex-direction: column; }
+  .funnel li + li::before { display: none; }
+  .filters input[type="search"], .filters select { width: 100%; max-width: none; }
+  .count { margin-left: 0; width: 100%; }
+  thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  table, tbody { display: block; }
+  tbody tr { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+  td { display: block; padding: 0; border: 0; min-width: 0; overflow-wrap: anywhere; }
+  td[data-label="Jev"] { white-space: normal; }
+  td.company { grid-column: 1 / -1; order: 1; color: var(--mid); white-space: normal; }
+  td.role { grid-column: 1 / -1; order: 2; min-width: 0; font-size: 0.9375rem; font-weight: 500; }
+  td:nth-child(3) { grid-column: 1 / -1; order: 3; color: var(--mid); }
+  td:nth-child(4) { grid-column: 1 / -1; order: 4; color: var(--mid); white-space: normal; }
+  td:nth-child(5) { order: 5; }
+  td:nth-child(6) { order: 6; }
+  td:nth-child(5)::before, td:nth-child(6)::before {
+    content: attr(data-label); display: block; font-size: 0.75rem; font-weight: 400; color: var(--muted);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tabs button { transition: none; }
+}
+</style>
+</head>
+<body>
+<main>
+  <div class="wrap">
+    <header class="top">
+      <h1>AI PM Job Radar</h1>
+      <p class="intro">A list of AI product manager roles at well-known AI and tech companies. Jev, a decision model, reads each product posting in full, so it can find AI roles that a title filter misses.</p>
+      <p class="updated">Updated <time id="updated" datetime="%%UPDATED_ISO%%">%%UPDATED%%</time></p>
+      <p class="stale" id="stale" hidden></p>
+      <p class="finding">Jev found %%AI_TOTAL%% roles with AI work. A title filter finds %%RULE_FOUND%% of them.</p>
+      %%FUNNEL%%
+    </header>
+
+    <section aria-label="Roles">
+      <div class="tools">
+        <div class="tabs" role="group" aria-label="Which roles to show">
+          <button type="button" data-view="ai" aria-pressed="true">AI product<span class="n">%%COUNT_AI%%</span></button>
+          <button type="button" data-view="feature" aria-pressed="false">AI features<span class="n">%%COUNT_FEATURE%%</span></button>
+          <button type="button" data-view="review" aria-pressed="false">Needs review<span class="n">%%COUNT_REVIEW%%</span></button>
+          <button type="button" data-view="other" aria-pressed="false">PM, no AI<span class="n">%%COUNT_OTHER%%</span></button>
+          <button type="button" data-view="not" aria-pressed="false">Not PM<span class="n">%%COUNT_NOT%%</span></button>
+        </div>
+        <div class="filters">
+          <input type="search" id="q" placeholder="Search roles" aria-label="Search title, company, or location">
+          <select id="company" aria-label="Company">
+            <option value="">All companies</option>
+            %%COMPANIES%%
+          </select>
+          <label class="check"><input type="checkbox" id="remote"> Remote</label>
+          <label class="check"><input type="checkbox" id="differs"> Title filter disagrees</label>
+          <span class="count" id="count" role="status"></span>
+        </div>
+      </div>
+
+      <p class="view-note" id="note">PM roles on an AI product. Blue in the last column means the title filter gives a different answer.</p>
+
+      <table>
+        <thead>
+          <tr><th scope="col">Company</th><th scope="col">Role</th><th scope="col">Location</th><th scope="col">Pay</th><th scope="col">Jev</th><th scope="col">Title filter</th></tr>
+        </thead>
+        <tbody id="rows">
+%%ROWS%%
+        </tbody>
+      </table>
+      <p class="empty" id="empty" hidden>No roles match these filters. <button type="button" class="linkish" id="clear">Clear filters</button></p>
+    </section>
+  </div>
+
+  <section class="trust" aria-labelledby="trust-title">
+    <div class="wrap">
+      <h2 id="trust-title">How far to trust this</h2>
+      <p>I labeled 40 postings by hand and scored both methods on them. On AI product work, Jev got 15 of 15 and a title rule got 5 of 15. On whether a role is really PM, Jev got 40 of 40 and the title rule got 39 of 40.</p>
+      <p>That's a small sample: the real error rate could be as high as about 20%. Those scores were measured on jev-1.13.0 on September 29, 2026, and this page runs on the latest version. The numbers next to each answer are Jev's own confidence, and anything below its floor goes to Needs review.</p>
+      <p class="links">
+        <a href="https://github.com/jjingdong/ai-pm-job-radar/blob/main/eval/results.md">Full eval results</a>
+        <a href="https://github.com/jjingdong/ai-pm-job-radar">Code</a>
+        <a href="https://aiproductnote.substack.com/p/i-tested-a-decision-model-on-571">Write-up</a>
+        <a href="https://jjingdong.com">Built by Jing Dong</a>
+      </p>
+      <p class="fine">%%RUN_NOTE%% Listings come from public job boards. Open a role to read and apply on the employer's site.</p>
+    </div>
+  </section>
+</main>
+<script>
+(function () {
+  var NOTES = {
+    ai: "PM roles on an AI product. Blue in the last column means the title filter gives a different answer.",
+    feature: "PM roles on a regular product that's adding AI.",
+    review: "Jev's confidence fell below the floor for this question, so a person should check these. The number shown is its lowest confidence.",
+    other: "Real PM roles with no AI work.",
+    not: "Postings with \"product\" or \"PM\" in the title that Jev screened out, such as sales, design, or program roles."
+  };
+  var rows = Array.prototype.slice.call(document.querySelectorAll("#rows tr"));
+  var tabs = Array.prototype.slice.call(document.querySelectorAll(".tabs button"));
+  var q = document.getElementById("q");
+  var company = document.getElementById("company");
+  var remote = document.getElementById("remote");
+  var differs = document.getElementById("differs");
+  var count = document.getElementById("count");
+  var note = document.getElementById("note");
+  var empty = document.getElementById("empty");
+  var view = "ai";
+
+  function apply() {
+    var term = q.value.trim().toLowerCase();
+    var shown = 0;
+    rows.forEach(function (r) {
+      var d = r.dataset;
+      var match = d.view === view &&
+        (!company.value || d.company === company.value) &&
+        (!remote.checked || d.remote === "1") &&
+        (!differs.checked || d.differs === "1") &&
+        (!term || d.search.indexOf(term) !== -1);
+      r.hidden = !match;
+      if (match) shown += 1;
+    });
+    count.textContent = shown === 1 ? "1 role" : shown.toLocaleString("en-US") + " roles";
+    empty.hidden = shown !== 0;
+  }
+
+  tabs.forEach(function (tab) {
+    tab.addEventListener("click", function () {
+      view = tab.dataset.view;
+      tabs.forEach(function (t) { t.setAttribute("aria-pressed", String(t === tab)); });
+      note.textContent = NOTES[view];
+      apply();
+    });
+  });
+  q.addEventListener("input", apply);
+  [company, remote, differs].forEach(function (el) { el.addEventListener("change", apply); });
+  document.getElementById("clear").addEventListener("click", function () {
+    q.value = ""; company.value = ""; remote.checked = false; differs.checked = false;
+    apply();
+    q.focus();
+  });
+
+  var updated = new Date(document.getElementById("updated").dateTime + "T00:00:00Z");
+  var days = Math.floor((Date.now() - updated.getTime()) / 86400000);
+  if (days >= 14) {
+    var stale = document.getElementById("stale");
+    stale.textContent = "This list is " + days + " days old, so some roles may have closed.";
+    stale.hidden = false;
+  }
+  apply();
+})();
+</script>
+</body>
+</html>
